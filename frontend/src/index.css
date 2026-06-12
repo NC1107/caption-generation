@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: toggled by adding `.dark` to <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Light mode is a soft, low-glare neutral rather than stark white. */
+body {
+  @apply bg-gray-100 text-gray-800 antialiased;
+}
+
+.dark body {
+  @apply bg-gray-950 text-gray-100;
+}

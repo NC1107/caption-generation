@@ -1,0 +1,44 @@
+# Default: `docker compose up -d` → app only, fully local on http://localhost:8000
+# Bundled LLM: `docker compose --profile ollama up -d` (see README)
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        INSTALL_CUDA: "false"
+    image: caption-generation:latest
+    container_name: caption-generation
+    ports:
+      - "${CAPTION_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  # Optional local LLM. Only started with: docker compose --profile ollama up
+  ollama:
+    image: ollama/ollama:latest
+    container_name: caption-generation-ollama
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  # Optional offline translator for non-English. Start with: docker compose --profile translate up
+  # Then set LIBRETRANSLATE_URL=http://libretranslate:5000 (or http://localhost:5000 on host network).
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: caption-generation-translate
+    profiles: ["translate"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - libretranslate:/home/libretranslate/.local
+    restart: unless-stopped
+
+volumes:
+  ollama:
+  libretranslate:

@@ -1,0 +1,10 @@
+# Contexa backend runtime dependencies.
+# Floors (>=) are used so the image picks up security patches; the Dockerfile
+# build pins a lockfile-free but reproducible-enough set for self-hosters.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+python-multipart>=0.0.9
+httpx>=0.27
+faster-whisper>=1.0
