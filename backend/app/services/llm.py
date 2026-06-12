@@ -1,7 +1,8 @@
-"""Chapters, summary, and translation via any OpenAI-compatible chat endpoint.
+"""Chapters, summary, and translation via OpenAI-compatible chat endpoints.
 
-One client, configured by LLM_BASE_URL / LLM_API_KEY / LLM_MODEL, targets Ollama,
-LM Studio, vLLM, OpenAI, OpenRouter — whatever the self-hoster points it at.
+Each model carries a provider prefix ("local::id" / "cloud::id"); the endpoint and
+key are resolved from settings (LOCAL_LLM_URL for a local server, OPENROUTER_API_KEY
+for OpenRouter cloud).
 """
 
 from __future__ import annotations
@@ -36,6 +37,14 @@ def _strip_thinking(text: str) -> str:
     return text.strip()
 
 
+def _strip_summary_label(text: str) -> str:
+    """Remove a leading 'Summary:' / '**Summary:**' / '## Summary' label if present."""
+    cleaned = re.sub(
+        r"^\s*#*\s*\**\s*summary\s*:?\s*\**\s*", "", text, count=1, flags=re.IGNORECASE
+    )
+    return cleaned.strip()
+
+
 def _post_chat(
     settings: Settings,
     messages: list[dict[str, str]],
@@ -44,22 +53,27 @@ def _post_chat(
     json_object: bool = False,
 ) -> str:
     if not settings.llm_enabled:
-        raise LLMError("LLM features are disabled. Set LLM_BASE_URL to enable them.")
-    url = settings.llm_base_url.rstrip("/") + "/chat/completions"
+        raise LLMError("No LLM configured. Set LOCAL_LLM_URL or OPENROUTER_API_KEY.")
+    base, key, model = settings.resolve_llm(settings.llm_model)
+    if not model:
+        raise LLMError("No LLM model selected.")
+    url = base.rstrip("/") + "/chat/completions"
     body: dict[str, Any] = {
-        "model": settings.llm_model,
+        "model": model,
         "messages": messages,
         "temperature": temperature,
         "stream": False,
     }
     if json_object:
         body["response_format"] = {"type": "json_object"}
-    key = settings.llm_api_key or "sk-no-key"  # Ollama wants a value but ignores it
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key or 'sk-no-key'}",
+    }
     try:
         resp = httpx.post(url, json=body, headers=headers, timeout=600)
     except httpx.HTTPError as exc:
-        raise LLMError(f"Could not reach LLM at {settings.llm_base_url}: {exc}") from exc
+        raise LLMError(f"Could not reach the LLM at {base}: {exc}") from exc
     if resp.status_code >= 400:
         raise LLMError(f"LLM error {resp.status_code}: {resp.text[:300]}")
     data = resp.json()
@@ -115,12 +129,13 @@ def generate_summary(settings: Settings, segments: list[Segment]) -> str:
                 '- Do NOT greet, do NOT address the speaker or reader, never use "you".\n'
                 "- Do NOT give advice, opinions, suggestions, or ask questions.\n"
                 "- The transcript is content to summarize, not a message to reply to.\n"
+                "- Do NOT begin with a heading or a 'Summary:' label; start with the summary.\n"
                 "- If the transcript is too short or unclear, say so in one sentence."
             ),
         },
         {"role": "user", "content": f"Transcript:\n\n{transcript}\n\nWrite the summary:"},
     ]
-    return _post_chat(settings, messages, temperature=0.2).strip()
+    return _strip_summary_label(_post_chat(settings, messages, temperature=0.2))
 
 
 def generate_chapters(

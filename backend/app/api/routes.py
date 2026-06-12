@@ -58,32 +58,55 @@ def config(request: Request) -> ConfigResponse:
         whisper_device=s.whisper_device,
         whisper_compute_type=s.whisper_compute_type,
         llm_enabled=s.llm_enabled,
-        llm_model=s.llm_model if s.llm_enabled else None,
+        llm_model=s.default_llm_spec or None,
         translation_enabled=enabled,
         translation_english_only=english_only,
         max_upload_mb=s.max_upload_mb,
     )
 
 
+# Curated OpenRouter suggestions (cloud). Users can also set a custom one via LLM_MODEL.
+CLOUD_MODELS = [
+    "openai/gpt-4o-mini",
+    "anthropic/claude-3.5-haiku",
+    "google/gemini-2.0-flash-001",
+    "meta-llama/llama-3.3-70b-instruct",
+    "meta-llama/llama-3.1-8b-instruct",
+    "qwen/qwen-2.5-72b-instruct",
+    "mistralai/mistral-nemo",
+    "deepseek/deepseek-chat",
+]
+
+
 @router.get("/llm/models")
 def llm_models(request: Request) -> dict:
-    """List models from the configured OpenAI-compatible endpoint (Ollama, etc.)."""
+    """Models available across providers: local (discovered) + cloud (curated)."""
     s = _settings(request)
-    if not s.llm_enabled:
-        return {"models": [], "current": None}
-    url = s.llm_base_url.rstrip("/") + "/models"
-    headers = {"Authorization": f"Bearer {s.llm_api_key or 'sk-no-key'}"}
-    try:
-        resp = httpx.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        data = resp.json().get("data", [])
-        models = sorted({m.get("id") for m in data if m.get("id")})
-    except (httpx.HTTPError, ValueError, KeyError):
-        models = []
-    # Ensure the configured default is always selectable.
-    if s.llm_model and s.llm_model not in models:
-        models.insert(0, s.llm_model)
-    return {"models": models, "current": s.llm_model}
+    models: list[dict] = []
+
+    if s.has_local_llm:
+        try:
+            resp = httpx.get(
+                s.local_llm_url.rstrip("/") + "/models",
+                headers={"Authorization": "Bearer ollama"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            ids = sorted({m.get("id") for m in resp.json().get("data", []) if m.get("id")})
+        except (httpx.HTTPError, ValueError, KeyError):
+            ids = []
+        models += [{"value": f"local::{i}", "label": i, "group": "local"} for i in ids]
+
+    if s.has_cloud_llm:
+        models += [{"value": f"cloud::{i}", "label": i, "group": "cloud"} for i in CLOUD_MODELS]
+
+    default = s.default_llm_spec
+    if default and default not in {m["value"] for m in models}:
+        prov, _, mid = default.partition("::")
+        models.insert(0, {"value": default, "label": mid or default, "group": prov or "local"})
+    if not default and models:
+        default = models[0]["value"]
+    return {"models": models, "default": default}
 
 
 @router.post("/jobs", response_model=CreateJobResponse, status_code=201)
@@ -104,7 +127,8 @@ async def create_job(
 
     if (generate_chapters or generate_summary) and not s.llm_enabled:
         raise HTTPException(
-            status_code=400, detail="Chapters and summary need an LLM. Set LLM_BASE_URL."
+            status_code=400,
+            detail="Chapters and summary need an LLM. Set LOCAL_LLM_URL or OPENROUTER_API_KEY.",
         )
     if translate_to:
         enabled, english_only = s.translation_caps()

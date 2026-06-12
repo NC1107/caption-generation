@@ -52,20 +52,25 @@ the model cache, the job database — lives in `./data`.
 
 ## Turning on chapters / summary / translation
 
-These need an LLM. Easiest fully-local option is the bundled Ollama service:
+These need an LLM. Use a **local** model, a **cloud** model, or both — the UI lets
+you pick per job, tagged `(local)` / `(cloud)`.
+
+**Cloud (easiest):** an OpenRouter key is all it takes.
+
+```ini
+OPENROUTER_API_KEY=sk-or-...
+```
+
+**Local, bundled Ollama:**
 
 ```bash
-# in .env:
-#   LLM_BASE_URL=http://ollama:11434/v1
-#   LLM_MODEL=llama3.1:8b
+# in .env:  LOCAL_LLM_URL=http://ollama:11434/v1
 docker compose --profile ollama up -d
 docker compose exec ollama ollama pull llama3.1:8b
 ```
 
-The toggles light up in the UI on their own once an LLM is reachable.
-
-**Already running Ollama on the host?** A bridged container can't reach an Ollama
-bound to `127.0.0.1`, so run the app on the host network. Drop in a
+**Local, an Ollama already on the host:** a bridged container can't reach an Ollama
+bound to `127.0.0.1`, so run the app on the host network — add a
 `docker-compose.override.yml`:
 
 ```yaml
@@ -74,28 +79,13 @@ services:
     network_mode: host
 ```
 
-…then point straight at it in `.env` and `docker compose up -d`:
+…then point at it in `.env`:
 
 ```ini
-LLM_BASE_URL=http://localhost:11434/v1
-LLM_API_KEY=ollama
-LLM_MODEL=qwen3:8b
+LOCAL_LLM_URL=http://localhost:11434/v1
 ```
 
-Prefer a hosted model? Point it anywhere OpenAI-compatible — your key goes in
-`LLM_API_KEY`:
-
-```ini
-# OpenAI
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_API_KEY=sk-...
-LLM_MODEL=gpt-4o-mini
-
-# OpenRouter
-LLM_BASE_URL=https://openrouter.ai/api/v1
-LLM_API_KEY=sk-or-...
-LLM_MODEL=meta-llama/llama-3.1-8b-instruct
-```
+The chapter/summary toggles and the model picker light up once a provider is set.
 
 ## Translation
 
@@ -137,9 +127,9 @@ Everything has a default. Copy `.env.example` to `.env` and change only what you
 | `TRANSCRIBE_ENGINE` | `local` | `local` (faster-whisper) or `openai` (hosted Whisper) |
 | `WHISPER_MODEL` | `base` | `tiny` · `base` · `small` · `medium` · `large-v3` |
 | `WHISPER_DEVICE` | `auto` | `auto` · `cpu` · `cuda` |
-| `LLM_BASE_URL` | _(empty = off)_ | OpenAI-compatible endpoint for the AI extras |
-| `LLM_API_KEY` | — | API key (any value for Ollama) |
-| `LLM_MODEL` | `llama3.1:8b` | LLM model name (the UI also lists models from the endpoint) |
+| `LOCAL_LLM_URL` | _(empty)_ | Local OpenAI-compatible LLM (Ollama/LM Studio/vLLM) → `(local)` models |
+| `OPENROUTER_API_KEY` | _(empty)_ | OpenRouter key → `(cloud)` models |
+| `LLM_MODEL` | _(auto)_ | Optional default model: `local::id`, `cloud::id`, or a plain id |
 | `TRANSLATE_ENGINE` | `auto` | `auto` · `whisper` (→English) · `libretranslate` · `llm` · `off` |
 | `LIBRETRANSLATE_URL` | _(empty)_ | Offline translator endpoint, for non-English without an LLM |
 

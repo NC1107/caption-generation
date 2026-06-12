@@ -32,6 +32,17 @@ export function formatEta(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
+/** Compact ETA for the button, e.g. "~45s", "~12 min", "~1h 5m". */
+export function formatEtaShort(seconds: number): string {
+  if (!isFinite(seconds) || seconds <= 0) return "—";
+  if (seconds < 60) return `~${Math.ceil(seconds / 5) * 5}s`;
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `~${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `~${h}h ${m}m` : `~${h}h`;
+}
+
 export function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   const diff = Date.now() - then;

@@ -6,15 +6,12 @@ import {
   TARGET_LANGUAGES,
   WHISPER_COMPUTE_TYPES,
   WHISPER_MODELS,
-  WHISPER_REALTIME_CPU,
 } from "../lib/constants";
-import { formatEta } from "../lib/format";
 
 interface Props {
   config: AppConfig;
   options: JobOptions;
   onChange: (next: JobOptions) => void;
-  mediaDuration: number | null;
 }
 
 const inputCls =
@@ -127,38 +124,32 @@ function SearchableSelect({
   );
 }
 
-function estimateEtaSeconds(durationSec: number, model: string, device: string): number {
-  const rt = WHISPER_REALTIME_CPU[model] ?? 5;
-  const factor = device === "cuda" ? rt * 10 : rt;
-  return durationSec / factor + 5; // + a little fixed overhead
-}
+type ModelOpt = { value: string; label: string; group: string };
 
-export function OptionsForm({ config, options, onChange, mediaDuration }: Props) {
+export function OptionsForm({ config, options, onChange }: Props) {
   const set = (patch: Partial<JobOptions>) => onChange({ ...options, ...patch });
   const llmOn = config.llm_enabled;
-  const llmHint = llmOn ? undefined : "Requires an LLM — set LLM_BASE_URL to enable.";
+  const llmHint = llmOn ? undefined : "Requires an LLM — enable a provider below.";
 
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<ModelOpt[]>([]);
   useEffect(() => {
-    if (llmOn) api.llmModels().then((r) => setModels(r.models)).catch(() => {});
+    if (!llmOn) return;
+    api
+      .llmModels()
+      .then((r) => {
+        setModels(r.models);
+        if (!options.llm_model && r.default) set({ llm_model: r.default }); // preselect a model
+      })
+      .catch(() => {});
   }, [llmOn]);
 
   const translateOn = options.translate_to != null;
   const englishOnly = config.translation_english_only;
 
   const currentModel = options.llm_model ?? config.llm_model ?? "";
-  const modelOptions = (() => {
-    const base = models.length ? models : config.llm_model ? [config.llm_model] : [];
-    return currentModel && !base.includes(currentModel) ? [currentModel, ...base] : base;
-  })();
-
+  const localModels = models.filter((m) => m.group === "local");
+  const cloudModels = models.filter((m) => m.group === "cloud");
   const effWhisperModel = options.whisper_model ?? config.whisper_model;
-  const eta =
-    mediaDuration != null
-      ? estimateEtaSeconds(mediaDuration, effWhisperModel, config.whisper_device)
-      : null;
-  const hasExtras =
-    options.generate_chapters || options.generate_summary || options.translate_to != null;
 
   return (
     <div className="space-y-5">
@@ -269,15 +260,29 @@ export function OptionsForm({ config, options, onChange, mediaDuration }: Props)
             onChange={(e) => set({ llm_model: e.target.value || null })}
             className={inputCls}
           >
-            {modelOptions.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
+            {localModels.length > 0 && (
+              <optgroup label="Local">
+                {localModels.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label} (local)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {cloudModels.length > 0 && (
+              <optgroup label="Cloud">
+                {cloudModels.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label} (cloud)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <p className={`mt-1 ${hintCls}`}>
-            Models come from your LLM server. Add more with e.g.{" "}
-            <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">ollama pull llama3.1:8b</code>.
+            <strong>Local</strong> models are discovered from your server (add more with{" "}
+            <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">ollama pull …</code>).{" "}
+            <strong>Cloud</strong> models run via OpenRouter.
           </p>
         </div>
       )}
@@ -322,21 +327,15 @@ export function OptionsForm({ config, options, onChange, mediaDuration }: Props)
             Defaults: <strong>{config.whisper_model}</strong> · {config.whisper_compute_type} on{" "}
             {config.whisper_device}. Bigger models are more accurate but slower.
           </p>
-          {eta != null && (
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
-              Estimated transcription: <strong>~{formatEta(eta)}</strong>
-              {config.whisper_device !== "cuda" ? " (CPU estimate — faster on a GPU)" : ""}
-              {hasExtras ? " · plus time for the AI steps" : ""}
-            </p>
-          )}
         </div>
       )}
 
       {!llmOn && (
         <p className={hintCls}>
-          Chapters and summaries need an LLM. Point{" "}
-          <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">LLM_BASE_URL</code> at Ollama
-          or any OpenAI-compatible server. Subtitles and English translation work without it.
+          Chapters and summaries need an LLM. Set{" "}
+          <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">LOCAL_LLM_URL</code> (Ollama) or{" "}
+          <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">OPENROUTER_API_KEY</code>.
+          Subtitles and English translation work without it.
         </p>
       )}
     </div>

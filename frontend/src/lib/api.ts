@@ -102,7 +102,11 @@ export const api = {
   getConfig: () => fetch("/api/config").then((r) => json<AppConfig>(r)),
 
   llmModels: () =>
-    fetch("/api/llm/models").then((r) => json<{ models: string[]; current: string | null }>(r)),
+    fetch("/api/llm/models").then((r) =>
+      json<{ models: { value: string; label: string; group: string }[]; default: string | null }>(
+        r,
+      ),
+    ),
 
   listJobs: () => fetch("/api/jobs").then((r) => json<Job[]>(r)),
 

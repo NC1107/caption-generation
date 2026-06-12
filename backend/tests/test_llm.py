@@ -4,7 +4,7 @@ from app.config import Settings
 from app.models import Segment
 from app.services import llm
 
-LLM_SETTINGS = Settings(llm_base_url="http://fake:11434/v1", llm_model="test")
+LLM_SETTINGS = Settings(local_llm_url="http://fake:11434/v1", llm_model="test")
 
 
 def test_extract_json_from_fenced_block():

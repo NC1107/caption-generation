@@ -34,6 +34,16 @@ export const WHISPER_REALTIME_CPU: Record<string, number> = {
   "large-v3": 0.9,
 };
 
+export function estimateTranscriptionSeconds(
+  durationSec: number,
+  model: string,
+  device: string,
+): number {
+  const rt = WHISPER_REALTIME_CPU[model] ?? 5;
+  const factor = device === "cuda" ? rt * 10 : rt;
+  return durationSec / factor + 5; // + a little fixed overhead
+}
+
 export const CHAPTER_COUNTS: { label: string; value: number | null }[] = [
   { label: "Auto", value: null },
   { label: "~5", value: 5 },

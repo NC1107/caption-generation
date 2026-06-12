@@ -43,10 +43,10 @@ class Settings(BaseSettings):
     transcribe_api_key: str = ""
     transcribe_api_model: str = "whisper-1"
 
-    # llm — optional, powers chapters / summary / (optionally) translation
-    llm_base_url: str = ""
-    llm_api_key: str = ""
-    llm_model: str = "llama3.1:8b"
+    # llm providers (optional) — a local OpenAI-compatible server and/or OpenRouter (cloud)
+    local_llm_url: str = ""  # e.g. http://localhost:11434/v1 (Ollama, LM Studio, vLLM)
+    openrouter_api_key: str = ""
+    llm_model: str = ""  # default model spec: "local::id", "cloud::id", or a plain id
     llm_max_input_tokens: int = 12000
 
     # translation: auto | whisper | libretranslate | llm | off
@@ -71,8 +71,35 @@ class Settings(BaseSettings):
         return self.data_dir / "caption.sqlite"
 
     @property
+    def has_local_llm(self) -> bool:
+        return bool(self.local_llm_url.strip())
+
+    @property
+    def has_cloud_llm(self) -> bool:
+        return bool(self.openrouter_api_key.strip())
+
+    @property
     def llm_enabled(self) -> bool:
-        return bool(self.llm_base_url.strip())
+        return self.has_local_llm or self.has_cloud_llm
+
+    @property
+    def default_llm_spec(self) -> str:
+        """Env-configured default model, provider-prefixed. May be empty."""
+        if not self.llm_model:
+            return ""
+        if "::" in self.llm_model:
+            return self.llm_model
+        return ("local::" if self.has_local_llm else "cloud::") + self.llm_model
+
+    def resolve_llm(self, spec: str) -> tuple[str, str, str]:
+        """Map a model spec ('local::id' | 'cloud::id' | 'id') to (base_url, api_key, model)."""
+        provider, sep, mid = spec.partition("::")
+        if not sep:
+            mid = spec
+            provider = "local" if self.has_local_llm else "cloud"
+        if provider == "cloud":
+            return ("https://openrouter.ai/api/v1", self.openrouter_api_key or "sk-no-key", mid)
+        return (self.local_llm_url.rstrip("/"), "ollama", mid)
 
     @property
     def has_libretranslate(self) -> bool:

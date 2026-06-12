@@ -12,6 +12,8 @@ import { OptionsForm } from "./components/OptionsForm";
 import { JobProgress } from "./components/JobProgress";
 import { JobResult } from "./components/JobResult";
 import { RecentJobs } from "./components/RecentJobs";
+import { estimateTranscriptionSeconds } from "./lib/constants";
+import { formatEtaShort } from "./lib/format";
 
 const DEFAULT_OPTIONS: JobOptions = {
   source_language: null,
@@ -125,9 +127,18 @@ export default function App() {
     loadRecent();
   };
 
+  const etaSeconds =
+    config && mediaDuration && mediaDuration > 0
+      ? estimateTranscriptionSeconds(
+          mediaDuration,
+          options.whisper_model ?? config.whisper_model,
+          config.whisper_device,
+        )
+      : null;
+
   return (
     <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <Header config={config} dark={dark} onToggleTheme={toggleTheme} />
+      <Header dark={dark} onToggleTheme={toggleTheme} onHome={startNew} />
 
       {configError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
@@ -145,36 +156,32 @@ export default function App() {
                 onMeta={setMediaDuration}
                 maxMb={config.max_upload_mb}
               />
-              <OptionsForm
-                config={config}
-                options={options}
-                onChange={setOptions}
-                mediaDuration={mediaDuration}
-              />
+              <OptionsForm config={config} options={options} onChange={setOptions} />
               {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}
               <button
                 disabled={!file || submitting}
                 onClick={submit}
                 className="w-full rounded-md bg-gray-900 px-4 py-2.5 font-medium text-white transition enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900 dark:enabled:hover:bg-gray-200"
               >
-                {submitting ? "Starting…" : "Generate subtitles"}
+                {submitting ? (
+                  "Starting…"
+                ) : (
+                  <>
+                    Generate subtitles
+                    {etaSeconds ? (
+                      <span className="font-normal opacity-80"> (eta {formatEtaShort(etaSeconds)})</span>
+                    ) : null}
+                  </>
+                )}
               </button>
             </div>
           )}
 
           {view === "job" && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {activeJob?.filename ?? file?.name ?? "Processing…"}
-                </h2>
-                <button
-                  onClick={startNew}
-                  className="shrink-0 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                >
-                  + New
-                </button>
-              </div>
+              <h2 className="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {activeJob?.filename ?? file?.name ?? "Processing…"}
+              </h2>
 
               {(!activeJob || !TERMINAL.includes(activeJob.status)) && (
                 <JobProgress job={activeJob} upload={upload} />
@@ -206,39 +213,36 @@ export default function App() {
 }
 
 function Header({
-  config,
   dark,
   onToggleTheme,
+  onHome,
 }: {
-  config: AppConfig | null;
   dark: boolean;
   onToggleTheme: () => void;
+  onHome: () => void;
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-5 dark:border-gray-800">
-      <div>
+      <button onClick={onHome} className="text-left" title="New job">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
           Caption Generation
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Subtitles, chapters, summaries &amp; translation.
         </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {config && (
-          <>
-            <Pill>
-              {config.transcribe_engine === "local" ? "Local Whisper" : "Whisper API"} ·{" "}
-              {config.whisper_model}
-            </Pill>
-            <Pill>{config.llm_enabled ? `LLM · ${config.llm_model}` : "LLM off"}</Pill>
-          </>
-        )}
+      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onHome}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          + New
+        </button>
         <button
           onClick={onToggleTheme}
           title={dark ? "Switch to light" : "Switch to dark"}
           aria-label="Toggle theme"
-          className="rounded-md border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          className="rounded-md border border-gray-300 p-1.5 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           {dark ? (
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -253,14 +257,6 @@ function Header({
         </button>
       </div>
     </header>
-  );
-}
-
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
-      {children}
-    </span>
   );
 }
 

@@ -116,7 +116,7 @@ def test_llm_features_rejected_when_disabled():
             data={"generate_chapters": "true"},
         )
         assert resp.status_code == 400
-        assert "LLM_BASE_URL" in resp.json()["detail"]
+        assert "LLM" in resp.json()["detail"]
 
 
 def test_non_english_translation_rejected_without_engine():

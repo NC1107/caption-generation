@@ -33,7 +33,7 @@ def test_auto_other_language_needs_an_engine():
 def test_auto_prefers_libretranslate_then_llm():
     libre = Settings(libretranslate_url="http://lt:5000")
     assert translate.resolve_engine(libre, "Spanish") == "libretranslate"
-    assert translate.resolve_engine(Settings(llm_base_url="http://x/v1"), "Spanish") == "llm"
+    assert translate.resolve_engine(Settings(local_llm_url="http://x/v1"), "Spanish") == "llm"
 
 
 def test_translation_caps():
