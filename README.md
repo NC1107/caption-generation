@@ -8,6 +8,8 @@ A modern, self-hostable take on the (abandoned) [subvert](https://github.com/asc
 local transcription with [faster-whisper](https://github.com/SYSTRAN/faster-whisper),
 and AI extras through any local or cloud LLM.
 
+<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/2ccdc641-fa33-4630-a48f-4f38cb622951" />
+
 ## Quick start
 
 ```bash
