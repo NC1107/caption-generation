@@ -4,8 +4,8 @@
 #   docker compose --profile ollama up -d      # + bundled local LLM (Ollama)
 #   docker compose --profile translate up -d   # + offline translator (LibreTranslate)
 #
-# GPU: uncomment the two GPU blocks in the `app` service, set INSTALL_CUDA "true",
-#      then `docker compose up -d --build` (needs the NVIDIA Container Toolkit).
+# GPU: set `image: …:latest-gpu` below + uncomment the GPU block in `app`, then
+#      `docker compose up -d` (needs the NVIDIA Container Toolkit).
 #
 # A git-ignored docker-compose.override.yml (if present) is auto-merged for
 # machine-specific tweaks — e.g. host networking to reach an Ollama on 127.0.0.1.
@@ -26,7 +26,7 @@ services:
     volumes:
       - ./data:/data
     restart: unless-stopped
-    # GPU: uncomment to use an NVIDIA GPU (with INSTALL_CUDA "true" + --build)
+    # GPU: use the ":latest-gpu" image above, then uncomment this block.
     # environment:
     #   WHISPER_DEVICE: "cuda"
     #   WHISPER_COMPUTE_TYPE: "float16"

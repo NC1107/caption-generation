@@ -1,8 +1,9 @@
 name: Publish image
 
-# Builds two image variants and pushes them to GHCR:
-#   default       → caption-generation:latest        (CPU, ~1.4 GB)
-#   -translate    → caption-generation:latest-translate (bundled LibreTranslate, ~3.5 GB)
+# Builds three image variants and pushes them to GHCR:
+#   default     → caption-generation:latest            (CPU, ~1.4 GB)
+#   -translate  → caption-generation:latest-translate  (bundled LibreTranslate, ~3.5 GB)
+#   -gpu        → caption-generation:latest-gpu         (CUDA-enabled, ~2.5 GB)
 # main → `latest*`, `main*`, `sha-*`; tag vX.Y.Z → `X.Y.Z*` + a GitHub Release.
 on:
   push:
@@ -29,11 +30,17 @@ jobs:
       matrix:
         include:
           - variant: default
+            install_cuda: "false"
             bundle_translate: "false"
             suffix: ""
           - variant: translate
+            install_cuda: "false"
             bundle_translate: "true"
             suffix: "-translate"
+          - variant: gpu
+            install_cuda: "true"
+            bundle_translate: "false"
+            suffix: "-gpu"
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +69,7 @@ jobs:
           context: .
           push: true
           build-args: |
+            INSTALL_CUDA=${{ matrix.install_cuda }}
             BUNDLE_TRANSLATE=${{ matrix.bundle_translate }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

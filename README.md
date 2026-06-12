@@ -5,18 +5,12 @@ Local transcription with [faster-whisper](https://github.com/SYSTRAN/faster-whis
 
 <img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/2ccdc641-fa33-4630-a48f-4f38cb622951" />
 
-## Quick start
-
-```bash
-cp .env.example .env
-docker compose up -d   # → http://localhost:8000
-```
-
 Subtitles and English translation work out of the box. For chapters, summaries, and
 other-language translation, set `OPENROUTER_API_KEY` (cloud) or `LOCAL_LLM_URL` (local,
 e.g. Ollama) in `.env`, then pick a model in the UI. Everything configurable lives in
 `.env.example`.
 
-Images: `:latest` (CPU) or `:latest-translate` (bundles an offline translator; larger).
+Images (GHCR): `:latest` (CPU) · `:latest-gpu` (NVIDIA) · `:latest-translate` (bundled
+offline translator, larger).
 
 [MIT](LICENSE)

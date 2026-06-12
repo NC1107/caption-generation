@@ -49,7 +49,11 @@ export function JobResult({ job }: { job: Job }) {
       <div className={`flex flex-wrap items-center gap-x-8 gap-y-2 px-5 py-4 ${card}`}>
         <Stat label="Language" value={r.detected_language ?? "—"} />
         <Stat label="Duration" value={formatDuration(r.duration)} />
-        <Stat label="Cues" value={String(r.cue_count)} />
+        <Stat
+          label="Cues"
+          value={String(r.cue_count)}
+          hint="A cue is one timed subtitle entry — a single line shown in the .srt/.vtt."
+        />
       </div>
 
       {r.artifacts.length > 0 && (
@@ -107,10 +111,17 @@ export function JobResult({ job }: { job: Job }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div>
-      <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+    <div title={hint}>
+      <p
+        className={
+          "text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500" +
+          (hint ? " cursor-help underline decoration-dotted underline-offset-2" : "")
+        }
+      >
+        {label}
+      </p>
       <p className="font-medium text-gray-900 dark:text-gray-100">{value}</p>
     </div>
   );
