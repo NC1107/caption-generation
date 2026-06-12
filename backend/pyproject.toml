@@ -17,3 +17,4 @@ ignore = ["B008"]  # FastAPI uses function-call defaults (Depends/File) by desig
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = ["."]  # make `app` importable under `pytest` (not just `python -m pytest`)
