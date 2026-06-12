@@ -24,7 +24,7 @@ lint: ## Lint the backend
 	. .venv/bin/activate && cd backend && ruff check .
 
 build: ## Build the production Docker image
-	docker build -t caption-generation:latest .
+	docker build -t ghcr.io/nc1107/caption-generation:latest .
 
 up: ## Start Caption Generation (app only) in the background
 	docker compose up -d --build

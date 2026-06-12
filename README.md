@@ -14,8 +14,10 @@ and AI extras through any local or cloud LLM.
 
 ```bash
 cp .env.example .env        # optional — defaults work as-is
-docker compose up -d        # → http://localhost:8000
+docker compose up -d        # pulls the prebuilt image → http://localhost:8000
 ```
+
+(Builds locally instead with `docker compose up -d --build`.)
 
 Drop in a file, hit **Generate subtitles**. First run downloads the Whisper model
 (~140 MB) to `./data`; everything (uploads, output, models, DB) lives there.

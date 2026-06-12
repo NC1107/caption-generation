@@ -7,7 +7,7 @@ services:
       context: .
       args:
         INSTALL_CUDA: "false"
-    image: caption-generation:latest
+    image: ghcr.io/nc1107/caption-generation:latest
     container_name: caption-generation
     ports:
       - "${CAPTION_PORT:-8000}:8000"
