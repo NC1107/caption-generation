@@ -20,22 +20,9 @@ These use an LLM — set one of:
 OPENROUTER_API_KEY=sk-or-...          # cloud, easiest
 LOCAL_LLM_URL=http://ollama:11434/v1  # local (Ollama/LM Studio/vLLM)
 ```
+Then pick a model in the UI, local models are denoted with (local) and after you set a valid api key for openrouter you will see models denoted with (cloud)
 
-Then pick a model in the UI (`(local)` / `(cloud)`). No Ollama yet? Bundle one with
-`docker compose --profile ollama up -d`.
 
-## Settings
-
-All optional — see `.env.example` for the full list. The common ones:
-
-| Variable | Default | |
-|---|---|---|
-| `CAPTION_PORT` | `8000` | Port to serve on |
-| `MAX_UPLOAD_MB` | `51200` | Upload cap (~50 GB); `0` = no limit |
-| `WHISPER_MODEL` | `base` | `tiny`·`base`·`small`·`medium`·`large-v3` |
-| `OPENROUTER_API_KEY` / `LOCAL_LLM_URL` | — | Enable cloud / local LLM |
-
-**GPU:** `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build`
 
 ## Develop
 
