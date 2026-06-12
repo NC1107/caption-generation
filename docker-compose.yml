@@ -1,24 +1,44 @@
-# Default: `docker compose up -d` → app only, fully local on http://localhost:8000
-# Bundled LLM: `docker compose --profile ollama up -d` (see README)
+# One compose file. Defaults to the prebuilt CPU image, fully local.
+#
+#   docker compose up -d                       # app only
+#   docker compose --profile ollama up -d      # + bundled local LLM (Ollama)
+#   docker compose --profile translate up -d   # + offline translator (LibreTranslate)
+#
+# GPU: uncomment the two GPU blocks in the `app` service, set INSTALL_CUDA "true",
+#      then `docker compose up -d --build` (needs the NVIDIA Container Toolkit).
+#
+# A git-ignored docker-compose.override.yml (if present) is auto-merged for
+# machine-specific tweaks — e.g. host networking to reach an Ollama on 127.0.0.1.
 
 services:
   app:
+    image: ghcr.io/nc1107/caption-generation:latest
     build:
       context: .
       args:
-        INSTALL_CUDA: "false"
-    image: ghcr.io/nc1107/caption-generation:latest
+        INSTALL_CUDA: "false" # GPU: set to "true"
     container_name: caption-generation
     ports:
-      - "${CAPTION_PORT:-8000}:8000"
+      - "${PORT:-8000}:8000"
     env_file:
       - path: .env
         required: false
     volumes:
       - ./data:/data
     restart: unless-stopped
+    # GPU: uncomment to use an NVIDIA GPU (with INSTALL_CUDA "true" + --build)
+    # environment:
+    #   WHISPER_DEVICE: "cuda"
+    #   WHISPER_COMPUTE_TYPE: "float16"
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: ["gpu"]
 
-  # Optional local LLM. Only started with: docker compose --profile ollama up
+  # Optional local LLM — started only with: docker compose --profile ollama up
   ollama:
     image: ollama/ollama:latest
     container_name: caption-generation-ollama
@@ -27,8 +47,9 @@ services:
       - ollama:/root/.ollama
     restart: unless-stopped
 
-  # Optional offline translator for non-English. Start with: docker compose --profile translate up
-  # Then set LIBRETRANSLATE_URL=http://libretranslate:5000 (or http://localhost:5000 on host network).
+  # Optional offline translator — started only with: docker compose --profile translate up
+  # Then set LIBRETRANSLATE_URL=http://libretranslate:5000. (Or use the bundled
+  # ":latest-translate" image, which has LibreTranslate built in — see the README.)
   libretranslate:
     image: libretranslate/libretranslate:latest
     container_name: caption-generation-translate

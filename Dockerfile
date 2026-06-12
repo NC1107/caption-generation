@@ -38,8 +38,16 @@ RUN if [ "$INSTALL_CUDA" = "true" ]; then \
         pip install nvidia-cublas-cu12 nvidia-cudnn-cu12; \
     fi
 
+# Optional bundled offline translator: build with `--build-arg BUNDLE_TRANSLATE=true`
+# to embed LibreTranslate (the ":*-translate" image). Adds ~2 GB (it pulls PyTorch).
+ARG BUNDLE_TRANSLATE=false
+ENV BUNDLE_TRANSLATE=${BUNDLE_TRANSLATE}
+RUN if [ "$BUNDLE_TRANSLATE" = "true" ]; then pip install libretranslate; fi
+
 COPY backend/ ./
 COPY --from=frontend /frontend/dist /app/static
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 VOLUME ["/data"]
@@ -47,4 +55,4 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status==200 else 1)"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/entrypoint.sh"]

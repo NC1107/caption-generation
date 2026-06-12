@@ -12,6 +12,19 @@ cp .env.example .env        # optional — defaults work as-is
 docker compose up -d        # → http://localhost:8000
 ```
 
+Drop in a file, hit **Generate subtitles**. First run downloads the Whisper model
+(~140 MB) to `./data`; everything (uploads, output, models, DB) lives there. Subtitles
+and English translation are fully local and need no key. (Build locally with `--build`.)
+
+### Images
+
+| Image | Size | Translation |
+|---|---|---|
+| `ghcr.io/nc1107/caption-generation:latest` | ~1.4 GB | →English via Whisper; other languages via your LLM |
+| `…:latest-translate` | ~3.5 GB | bundled offline translator (LibreTranslate) — every language, no LLM |
+
+For the bundled translator, set `image: ghcr.io/nc1107/caption-generation:latest-translate` in `docker-compose.yml`.
+
 ## Chapters, summaries & other-language translation
 
 These use an LLM — set one of:
@@ -20,9 +33,33 @@ These use an LLM — set one of:
 OPENROUTER_API_KEY=sk-or-...          # cloud, easiest
 LOCAL_LLM_URL=http://ollama:11434/v1  # local (Ollama/LM Studio/vLLM)
 ```
-Then pick a model in the UI, local models are denoted with (local) and after you set a valid api key for openrouter you will see models denoted with (cloud)
 
+Then pick a model in the UI — local models are denoted `(local)`, and once you set a valid
+OpenRouter key you'll see `(cloud)` models. No Ollama yet? Bundle one with
+`docker compose --profile ollama up -d`.
 
+## Settings
+
+All optional — see `.env.example` for the full list. The common ones:
+
+| Variable | Default | |
+|---|---|---|
+| `PORT` | `8000` | Port to serve on |
+| `MAX_UPLOAD_MB` | `51200` | Upload cap (~50 GB); `0` = no limit |
+| `WHISPER_MODEL` | `base` | `tiny`·`base`·`small`·`medium`·`large-v3` |
+| `OPENROUTER_API_KEY` / `LOCAL_LLM_URL` | — | Enable cloud / local LLM |
+
+**GPU:** uncomment the GPU blocks in `docker-compose.yml`, then `docker compose up -d --build`.
+
+## Roadmap
+
+Ideas, not built yet:
+
+- **Auth / login** — protect a shared instance
+- **Render pipeline** — burn captions into the video
+- **Silence cutting** — auto-trim long dead-air gaps
+- **Richer media info** — codecs, bitrate, streams
+- **LLM review** — score chapters against a custom rubric to keep/drop them
 
 ## Develop
 

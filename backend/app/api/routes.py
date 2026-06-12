@@ -65,40 +65,51 @@ def config(request: Request) -> ConfigResponse:
     )
 
 
-# Curated OpenRouter suggestions (cloud). Users can also set a custom one via LLM_MODEL.
-CLOUD_MODELS = [
-    "openai/gpt-4o-mini",
-    "anthropic/claude-3.5-haiku",
-    "google/gemini-2.0-flash-001",
-    "meta-llama/llama-3.3-70b-instruct",
-    "meta-llama/llama-3.1-8b-instruct",
-    "qwen/qwen-2.5-72b-instruct",
-    "mistralai/mistral-nemo",
-    "deepseek/deepseek-chat",
-]
+OPENROUTER = "https://openrouter.ai/api/v1"
+
+
+def _openrouter_key_error(key: str) -> str | None:
+    """Validate the key against OpenRouter's authenticated /key endpoint."""
+    try:
+        r = httpx.get(f"{OPENROUTER}/key", headers={"Authorization": f"Bearer {key}"}, timeout=10)
+    except httpx.HTTPError:
+        return "Could not reach OpenRouter."
+    if r.status_code == 401:
+        return "OpenRouter API key was rejected."
+    if r.status_code >= 400:
+        return f"OpenRouter returned {r.status_code}."
+    return None
+
+
+def _fetch_models(url: str, key: str) -> list[str]:
+    try:
+        r = httpx.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=15)
+        r.raise_for_status()
+        return sorted({m.get("id") for m in r.json().get("data", []) if m.get("id")})
+    except (httpx.HTTPError, ValueError, KeyError):
+        return []
 
 
 @router.get("/llm/models")
 def llm_models(request: Request) -> dict:
-    """Models available across providers: local (discovered) + cloud (curated)."""
+    """Models per provider: local (from your server) + cloud (live from OpenRouter).
+
+    Fetching the cloud list hits OpenRouter's authenticated /key endpoint first, so
+    an invalid key is reported via `cloud_error` instead of failing silently later.
+    """
     s = _settings(request)
     models: list[dict] = []
+    cloud_error: str | None = None
 
     if s.has_local_llm:
-        try:
-            resp = httpx.get(
-                s.local_llm_url.rstrip("/") + "/models",
-                headers={"Authorization": "Bearer ollama"},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            ids = sorted({m.get("id") for m in resp.json().get("data", []) if m.get("id")})
-        except (httpx.HTTPError, ValueError, KeyError):
-            ids = []
+        ids = _fetch_models(s.local_llm_url.rstrip("/") + "/models", "ollama")
         models += [{"value": f"local::{i}", "label": i, "group": "local"} for i in ids]
 
     if s.has_cloud_llm:
-        models += [{"value": f"cloud::{i}", "label": i, "group": "cloud"} for i in CLOUD_MODELS]
+        cloud_error = _openrouter_key_error(s.openrouter_api_key)
+        if not cloud_error:
+            ids = _fetch_models(f"{OPENROUTER}/models", s.openrouter_api_key)
+            models += [{"value": f"cloud::{i}", "label": i, "group": "cloud"} for i in ids]
 
     default = s.default_llm_spec
     if default and default not in {m["value"] for m in models}:
@@ -106,7 +117,7 @@ def llm_models(request: Request) -> dict:
         models.insert(0, {"value": default, "label": mid or default, "group": prov or "local"})
     if not default and models:
         default = models[0]["value"]
-    return {"models": models, "default": default}
+    return {"models": models, "default": default, "cloud_error": cloud_error}
 
 
 @router.post("/jobs", response_model=CreateJobResponse, status_code=201)

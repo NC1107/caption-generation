@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # server
     caption_host: str = "0.0.0.0"
-    caption_port: int = 8000
+    port: int = 8000
     caption_cors_origins: str = ""
     caption_static_dir: str = ""  # built frontend; auto-detected when empty
     log_level: str = "info"

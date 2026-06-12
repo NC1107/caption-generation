@@ -103,9 +103,11 @@ export const api = {
 
   llmModels: () =>
     fetch("/api/llm/models").then((r) =>
-      json<{ models: { value: string; label: string; group: string }[]; default: string | null }>(
-        r,
-      ),
+      json<{
+        models: { value: string; label: string; group: string }[];
+        default: string | null;
+        cloud_error: string | null;
+      }>(r),
     ),
 
   listJobs: () => fetch("/api/jobs").then((r) => json<Job[]>(r)),

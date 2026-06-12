@@ -126,18 +126,94 @@ function SearchableSelect({
 
 type ModelOpt = { value: string; label: string; group: string };
 
+/** Searchable model picker — the OpenRouter list can be hundreds long. */
+function ModelCombo({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: ModelOpt[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+  const current = options.find((o) => o.value === value);
+  const q = query.trim().toLowerCase();
+  const filtered = (q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options).slice(
+    0,
+    200,
+  );
+  return (
+    <div ref={ref} className="relative">
+      <input
+        value={open ? query : current ? `${current.label} (${current.group})` : value}
+        placeholder="Search models…"
+        onFocus={() => {
+          setOpen(true);
+          setQuery("");
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        className={`${inputCls} pr-9`}
+      />
+      <svg
+        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+      </svg>
+      {open && (
+        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          {filtered.map((o) => (
+            <li
+              key={o.value}
+              onMouseDown={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
+              className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              <span className="truncate">{o.label}</span>
+              <span className="shrink-0 text-xs text-gray-400">{o.group}</span>
+            </li>
+          ))}
+          {filtered.length === 0 && (
+            <li className="px-3 py-2 text-sm text-gray-400">No matching models</li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function OptionsForm({ config, options, onChange }: Props) {
   const set = (patch: Partial<JobOptions>) => onChange({ ...options, ...patch });
   const llmOn = config.llm_enabled;
   const llmHint = llmOn ? undefined : "Requires an LLM — enable a provider below.";
 
   const [models, setModels] = useState<ModelOpt[]>([]);
+  const [cloudError, setCloudError] = useState<string | null>(null);
   useEffect(() => {
     if (!llmOn) return;
     api
       .llmModels()
       .then((r) => {
         setModels(r.models);
+        setCloudError(r.cloud_error);
         if (!options.llm_model && r.default) set({ llm_model: r.default }); // preselect a model
       })
       .catch(() => {});
@@ -147,8 +223,6 @@ export function OptionsForm({ config, options, onChange }: Props) {
   const englishOnly = config.translation_english_only;
 
   const currentModel = options.llm_model ?? config.llm_model ?? "";
-  const localModels = models.filter((m) => m.group === "local");
-  const cloudModels = models.filter((m) => m.group === "cloud");
   const effWhisperModel = options.whisper_model ?? config.whisper_model;
 
   return (
@@ -251,38 +325,18 @@ export function OptionsForm({ config, options, onChange }: Props) {
         )}
       </div>
 
-      {/* AI model dropdown — only when an LLM is configured. */}
+      {/* AI model — only when an LLM is configured. */}
       {llmOn && (
         <div>
           <label className={labelCls}>AI model</label>
-          <select
-            value={currentModel}
-            onChange={(e) => set({ llm_model: e.target.value || null })}
-            className={inputCls}
-          >
-            {localModels.length > 0 && (
-              <optgroup label="Local">
-                {localModels.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label} (local)
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {cloudModels.length > 0 && (
-              <optgroup label="Cloud">
-                {cloudModels.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label} (cloud)
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+          <ModelCombo value={currentModel} onChange={(v) => set({ llm_model: v })} options={models} />
+          {cloudError && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">OpenRouter: {cloudError}</p>
+          )}
           <p className={`mt-1 ${hintCls}`}>
-            <strong>Local</strong> models are discovered from your server (add more with{" "}
+            <strong>(local)</strong> models come from your server (add more with{" "}
             <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">ollama pull …</code>).{" "}
-            <strong>Cloud</strong> models run via OpenRouter.
+            <strong>(cloud)</strong> models are the live OpenRouter list.
           </p>
         </div>
       )}

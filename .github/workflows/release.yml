@@ -1,8 +1,9 @@
 name: Publish image
 
-# Builds the Docker image and pushes it to GHCR:
-#   - push to main      → tags `latest`, `main`, `sha-<short>`
-#   - push tag `vX.Y.Z` → tags `X.Y.Z`, `X.Y`, plus a GitHub Release
+# Builds two image variants and pushes them to GHCR:
+#   default       → caption-generation:latest        (CPU, ~1.4 GB)
+#   -translate    → caption-generation:latest-translate (bundled LibreTranslate, ~3.5 GB)
+# main → `latest*`, `main*`, `sha-*`; tag vX.Y.Z → `X.Y.Z*` + a GitHub Release.
 on:
   push:
     branches: [main]
@@ -23,6 +24,16 @@ env:
 jobs:
   image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: default
+            bundle_translate: "false"
+            suffix: ""
+          - variant: translate
+            bundle_translate: "true"
+            suffix: "-translate"
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +49,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
+          flavor: suffix=${{ matrix.suffix }},onlatest=true
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
@@ -49,13 +61,15 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            BUNDLE_TRANSLATE=${{ matrix.bundle_translate }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
 
       - name: GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: matrix.variant == 'default' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

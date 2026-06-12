@@ -227,9 +227,6 @@ function Header({
         <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
           Caption Generation
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Subtitles, chapters, summaries &amp; translation.
-        </p>
       </button>
       <div className="flex items-center gap-2">
         <button
