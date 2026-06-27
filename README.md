@@ -1,4 +1,10 @@
 # Caption Generation
+
+<!-- social-badges:start -->
+[![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/jUMuSxGf6q)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://github.com/NC1107)
+[![Patreon](https://img.shields.io/badge/Patreon-F96854?logo=patreon&logoColor=white)](https://patreon.com/NPC1107)
+<!-- social-badges:end -->
 This is meant to be a replacement for [subvert](https://github.com/aschmelyun/subvert) which seems to be abandoned. I have a similar video editing pipeline that I run locally so I thought it might be useful to offer another alternative with a more modern stack. I spin this up using qwen3:8b and get pretty good summaries/chapters/review. If anyone actually uses this wants some modifications or features, feel free to create a github issue and I'll get to it.
 
 Local transcription with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and AI extras through any local or cloud LLM.
